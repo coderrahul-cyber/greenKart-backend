@@ -114,7 +114,7 @@ export const updateProduct = asyncHandler(async (req: Request, res: Response) =>
   const product = await Product.findByIdAndUpdate(
     req.params.id,
     { $set: updates },
-    { new: true, runValidators: true }
+    { returnDocument : "after", runValidators: true }
   );
 
   if (!product) throw ApiError.notFound("Product not found");
