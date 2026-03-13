@@ -29,7 +29,7 @@ async function bootstrap() {
   // In prod: set FRONTEND_URL in .env to your deployed frontend URL
   const allowedOrigins = env.frontendUrl
     ? env.frontendUrl.split(",").map(o => o.trim())
-    : ["http://localhost:5173", "http://localhost:3000"];
+    : ["http://localhost:5173", "https://greenkartt.shop"];
 
   app.use(cors({
     origin: (origin, callback) => {
