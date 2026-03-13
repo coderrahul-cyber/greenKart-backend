@@ -25,7 +25,6 @@ async function bootstrap() {
 
   // ── CORS ─────────────────────────────────────────────────────────────────────
   // Allow requests from your frontend origin.
-  // In dev: http://localhost:5173 (Vite) or http://localhost:3000 (CRA)
   // In prod: set FRONTEND_URL in .env to your deployed frontend URL
   const allowedOrigins = env.frontendUrl
     ? env.frontendUrl.split(",").map(o => o.trim())
