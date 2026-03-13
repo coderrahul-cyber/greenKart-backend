@@ -26,21 +26,18 @@ async function bootstrap() {
   // ── CORS ─────────────────────────────────────────────────────────────────────
   // Allow requests from your frontend origin.
   // In prod: set FRONTEND_URL in .env to your deployed frontend URL
-  const allowedOrigins = env.frontendUrl
-    ? env.frontendUrl.split(",").map(o => o.trim())
-    : ["http://localhost:5173", "https://greenkartt.shop"];
+  // const allowedOrigins = env.frontendUrl
+  //   ? env.frontendUrl.split(",").map(o => o.trim())
+  //   : ["http://localhost:5173", "https://greenkartt.shop"];
 
-  app.use(cors({
-    origin: (origin, callback) => {
-      // Allow requests with no origin (Postman, mobile apps, server-to-server)
-      if (!origin) return callback(null, true);
-      if (allowedOrigins.includes(origin)) return callback(null, true);
-      callback(new Error(`CORS: origin "${origin}" not allowed`));
-    },
-    credentials: true,              // Allow cookies / Authorization headers
-    methods: ["GET","POST","PUT","PATCH","DELETE","OPTIONS"],
-    allowedHeaders: ["Content-Type","Authorization"],
-  }));
+ app.use(
+  cors({
+    origin: "*",
+    credentials: false,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
 
   // ── Security headers (Helmet) ────────────────────────────────────────────────
   // Sets 11 HTTP headers in one line:
