@@ -183,7 +183,7 @@ export const placeOrder = asyncHandler(async (req: AuthRequest, res: Response) =
     };
   });
 
-  const shippingCharge = itemsTotal >= 500 ? 0 : 50;
+  const shippingCharge = itemsTotal >= 500 ? 0 : Number(process.env.SHIPPING_CHARGE ?? 20);
   const discount       = cart.discount ?? 0;
   const taxAmount      = Math.round(itemsTotal * 0.18);
   const totalAmount    = itemsTotal + shippingCharge - discount + taxAmount;
