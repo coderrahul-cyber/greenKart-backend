@@ -36,6 +36,8 @@ import {
   adminGetAllPayments,
   adminGetPaymentById,
   adminPaymentStats,
+  adminVerifyUser,
+  adminDeleteUser,
 } from "./admin.controller";
 import { authenticate, adminOnly } from "../../middleware/auth";
 import { adminLoginLimiter }       from "../../middleware/rateLimiter";
@@ -82,8 +84,8 @@ router.patch ("/orders/:id/status",   adminUpdateOrderStatus);
 router.get   ("/users/stats",         adminUserStats);       // must be BEFORE /:id
 router.get   ("/users",               adminGetAllUsers);
 router.get   ("/users/:id",           adminGetUserById);
-router.patch ("/users/:id/toggle",    adminToggleUser);
-
+router.patch("/users/:id/verify", adminVerifyUser);
+router.delete("/users/:id", adminDeleteUser);
 // Payments
 router.get   ("/payments/stats",      adminPaymentStats);    // must be BEFORE /:id
 router.get   ("/payments",            adminGetAllPayments);

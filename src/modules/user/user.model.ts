@@ -18,14 +18,15 @@ export interface IAddress {
 export interface IUser extends Document {
   _id:         mongoose.Types.ObjectId;
   name:        string;
-  email:       string;
+  // email:       string;
+
   phoneNumber: string;
   password:    string;
   addresses:   IAddress[];
   orders:      mongoose.Types.ObjectId[];
   payments:    mongoose.Types.ObjectId[];
   cart?:       mongoose.Types.ObjectId;
-  isEmailVerified:    boolean;
+  isPhoneVerified:    boolean;
   isActive:           boolean;
   passwordChangedAt?: Date;
   refreshToken?:      string;
@@ -57,14 +58,6 @@ const userSchema = new Schema<IUser>(
       minlength: [2,  "Name must be at least 2 characters"],
       maxlength: [60, "Name cannot exceed 60 characters"],
     },
-    email: {
-      type:      String,
-      required:  [true, "Email is required"],
-      unique:    true,
-      lowercase: true,
-      trim:      true,
-      match:     [/^\S+@\S+\.\S+$/, "Please enter a valid email address"],
-    },
     password: {
       type:      String,
       required:  [true, "Password is required"],
@@ -79,7 +72,7 @@ const userSchema = new Schema<IUser>(
       match:    [/^\+?[1-9]\d{7,14}$/, "Please enter a valid phone number"],
     },
     addresses:       { type: [addressSchema], default: [] },
-    isEmailVerified: { type: Boolean, default: false },
+    isPhoneVerified: { type: Boolean, default: false },
     isActive:        { type: Boolean, default: true },
     passwordChangedAt: { type: Date,   select: false },
     refreshToken:      { type: String, select: false },

@@ -21,18 +21,19 @@ import {
 
 const router = Router();
 
-// ── Public — rate limited tightly ─────────────────────────────────────────────
-router.post("/register", registerLimiter, register);
-router.post("/login", loginLimiter, login);
+// ── Public ────────────────────────────────────────────────────────────────────
+// Called by frontend AFTER phone OTP is verified client-side (Firebase/any provider)
+router.post("/register",      registerLimiter,     register);
+router.post("/login",         loginLimiter,        login);
 router.post("/refresh-token", refreshTokenLimiter, refreshToken);
 
 // ── Protected ─────────────────────────────────────────────────────────────────
-router.post("/logout", authenticate, logout);
-router.get("/me", authenticate, getMe);
-router.patch("/me", authenticate, updateMe);
-router.patch("/me/change-password", authenticate, changePassword);
-router.post("/me/addresses", authenticate, addAddress);
-router.patch("/me/addresses/:addressId", authenticate, updateAddress);
+router.post  ("/logout",                  authenticate, logout);
+router.get   ("/me",                      authenticate, getMe);
+router.patch ("/me",                      authenticate, updateMe);
+router.patch ("/me/change-password",      authenticate, changePassword);
+router.post  ("/me/addresses",            authenticate, addAddress);
+router.patch ("/me/addresses/:addressId", authenticate, updateAddress);
 router.delete("/me/addresses/:addressId", authenticate, deleteAddress);
 
 export { router as userRouter };

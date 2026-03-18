@@ -5,7 +5,6 @@ import helmet  from "helmet";
 import { mongoSanitize } from "./middleware/mongoSanitize";
 import { publicApiLimiter } from "./middleware/rateLimiter";
 import { env, connectDB } from "./config";
-// import { getStoreStatus } from "./utils/storeState";
 import { initWebPush }   from "./utils/webPush";
 import { notFound, errorHandler } from "./middleware/errorHandler";
 
@@ -25,11 +24,9 @@ async function bootstrap() {
 
   // ── CORS ─────────────────────────────────────────────────────────────────────
   // Allow requests from your frontend origin.
+  // In dev: http://localhost:5173 (Vite) or http://localhost:3000 (CRA)
   // In prod: set FRONTEND_URL in .env to your deployed frontend URL
-  // const allowedOrigins = env.frontendUrl
-  //   ? env.frontendUrl.split(",").map(o => o.trim())
-  //   : ["http://localhost:5173", "https://greenkartt.shop"];
-
+  
  app.use(
   cors({
     origin: "*",
@@ -64,16 +61,12 @@ async function bootstrap() {
   // ── Dev request logger ───────────────────────────────────────────────────────
   if (env.isDev) {
     app.use((req: Request, _res: Response, next) => {
-      console.log(`  [${req.method}]  ${req.originalUrl}`);
+      // Strip ?token= from logged URL so JWT never appears in terminal output
+      const safeUrl = req.originalUrl.replace(/([?&])token=[^&]*/g, "$1token=[redacted]");
+      console.log(`  [${req.method}]  ${safeUrl}`);
       next();
     });
   }
-
-  // ── Public store status — no auth needed, frontend checks this on load ────────
-  // Returns { isOpen, message } — frontend disables cart/checkout when isOpen:false
-  // app.get("/store/status", (_req, res) => {
-  //   res.json({ success: true, data: getStoreStatus() });
-  // });
 
   // ── Health check ─────────────────────────────────────────────────────────────
   app.get("/health", (_req: Request, res: Response) => {

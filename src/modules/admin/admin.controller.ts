@@ -15,14 +15,9 @@ import {
   removeAdminConnection,
   notifyOrderUpdated,
 } from "../../utils/adminNotifier";
-// import {
-//   isStoreOpen,
-//   setStoreOpen,
-//   getStoreStatus,
-//   recordStoreStateChange,
-// } from "../../utils/storeState";
 import {
   saveSubscription,
+  getSubscriptionCount,
   type PushPayload,
 } from "../../utils/webPush";
 import type { PushSubscription } from "web-push";
@@ -207,7 +202,7 @@ export const adminGetAllOrders = asyncHandler(async (req: AuthRequest, res: Resp
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
-      .populate("userId", "name email phoneNumber")
+      .populate("userId", "name phoneNumber")
       .populate("payment", "method status amount paidAt"),
     Order.countDocuments(filter),
   ]);
@@ -222,7 +217,7 @@ export const adminGetAllOrders = asyncHandler(async (req: AuthRequest, res: Resp
 // GET /api/v1/admin/orders/:id
 export const adminGetOrderById = asyncHandler(async (req: AuthRequest, res: Response) => {
   const order = await Order.findById(req.params.id)
-    .populate("userId", "name email phoneNumber addresses")
+    .populate("userId", "name phoneNumber addresses")
     .populate("payment");
 
   if (!order) throw ApiError.notFound("Order not found");
@@ -283,7 +278,7 @@ export const adminOrderStats = asyncHandler(async (_req: AuthRequest, res: Respo
     Order.find()
       .sort({ createdAt: -1 })
       .limit(5)
-      .populate("userId", "name email"),
+      .populate("userId", "name phoneNumber"),
   ]);
 
   const stats = Object.fromEntries(
@@ -315,7 +310,6 @@ export const adminGetAllUsers = asyncHandler(async (req: AuthRequest, res: Respo
   if (search) {
     filter.$or = [
       { name:        { $regex: search, $options: "i" } },
-      { email:       { $regex: search, $options: "i" } },
       { phoneNumber: { $regex: search, $options: "i" } },
     ];
   }
@@ -350,17 +344,33 @@ export const adminGetUserById = asyncHandler(async (req: AuthRequest, res: Respo
 
 // ─── Toggle User Active (ban/unban) ──────────────────────────────────────────
 // PATCH /api/v1/admin/users/:id/toggle
-export const adminToggleUser = asyncHandler(async (req: AuthRequest, res: Response) => {
+// PATCH /api/v1/admin/users/:id/verify
+export const adminVerifyUser = asyncHandler(async (req: AuthRequest, res: Response) => {
   const user = await User.findById(req.params.id);
   if (!user) throw ApiError.notFound("User not found");
 
-  user.isActive = !user.isActive;
+  user.isPhoneVerified = !user.isPhoneVerified;
   await user.save({ validateBeforeSave: false });
 
   sendSuccess(res, {
-    userId:   user._id,
-    isActive: user.isActive,
-  }, `User ${user.isActive ? "activated" : "banned"}`);
+    userId:          user._id,
+    isPhoneVerified: user.isPhoneVerified,
+  }, `User phone ${user.isPhoneVerified ? "verified" : "unverified"}`);
+});
+
+
+// DELETE /api/v1/admin/users/:id
+export const adminDeleteUser = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const user = await User.findById(req.params.id);
+  if (!user) throw ApiError.notFound("User not found");
+
+  if (user.isPhoneVerified) {
+    throw ApiError.badRequest("Cannot delete a phone-verified user");
+  }
+
+  await User.findByIdAndDelete(req.params.id);
+
+  sendSuccess(res, { userId: req.params.id }, "User deleted successfully");
 });
 
 // ── User Stats ────────────────────────────────────────────────────────────────
@@ -404,7 +414,7 @@ export const adminGetAllPayments = asyncHandler(async (req: AuthRequest, res: Re
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
-      .populate("userId",  "name email")
+      .populate("userId",  "name phoneNumber")
       .populate("orderId", "orderId totalAmount status"),
     Payment.countDocuments(filter),
   ]);
@@ -419,7 +429,7 @@ export const adminGetAllPayments = asyncHandler(async (req: AuthRequest, res: Re
 // GET /api/v1/admin/payments/:id
 export const adminGetPaymentById = asyncHandler(async (req: AuthRequest, res: Response) => {
   const payment = await Payment.findById(req.params.id)
-    .populate("userId",  "name email phoneNumber")
+    .populate("userId",  "name phoneNumber")
     .populate("orderId");
 
   if (!payment) throw ApiError.notFound("Payment not found");
@@ -479,79 +489,6 @@ export const adminSavePushSubscription = asyncHandler(async (req: AuthRequest, r
   }, "Push subscription saved. You will receive notifications for new orders.");
 });
 
-// ══════════════════════════════════════════════════════════════════════════════
-// STORE MANAGEMENT
-// ══════════════════════════════════════════════════════════════════════════════
-
-// ─── Get Store Status ─────────────────────────────────────────────────────────
-// GET /api/v1/admin/store/status
-// Also publicly accessible at GET /api/v1/store/status (mounted in server.ts)
-// so the frontend can check store state without an admin token.
-// export const getAdminStoreStatus = asyncHandler(async (_req: AuthRequest, res: Response) => {
-//   const status = getStoreStatus();
-//   sendSuccess(res, status, "Store status fetched");
-// });
-
-// // ─── Open Store ───────────────────────────────────────────────────────────────
-// // PATCH /api/v1/admin/store/open
-// export const openStore = asyncHandler(async (req: AuthRequest, res: Response) => {
-//   const already = isStoreOpen();
-//   if (await already) {
-//     return sendSuccess(res, { isOpen: true }, "Store is already open");
-//   }
-
-//   setStoreOpen(true);
-//   recordStoreStateChange(true, req.user!.userId);
-
-//   console.log(`[store] Store OPENED by admin (${req.user!.userId})`);
-
-//   sendSuccess(res, { isOpen: true }, "Store is now open. Customers can add to cart and place orders.");
-// });
-
-// // ─── Close Store ──────────────────────────────────────────────────────────────
-// // PATCH /api/v1/admin/store/close
-// // Body: { reason? }  — optional reason logged for audit
-// export const closeStore = asyncHandler(async (req: AuthRequest, res: Response) => {
-//   const { reason } = req.body;
-
-//   const already = !isStoreOpen();
-//   if (already) {
-//     return sendSuccess(res, { isOpen: false }, "Store is already closed");
-//   }
-
-//   setStoreOpen(false);
-//   recordStoreStateChange(false, req.user!.userId);
-
-//   console.log(
-//     `[store] Store CLOSED by admin (${req.user!.userId})` +
-//     (reason ? ` — reason: ${reason}` : "")
-//   );
-
-//   sendSuccess(res, {
-//     isOpen: false,
-//     reason: reason ?? null,
-//   }, "Store is now closed. Customers can browse but cannot add to cart or place orders.");
-// });
-
-// // ─── Toggle Store (convenience) ───────────────────────────────────────────────
-// // PATCH /api/v1/admin/store/toggle
-// export const toggleStore = asyncHandler(async (req: AuthRequest, res: Response) => {
-//   const currentlyOpen = isStoreOpen();
-//   const newState      = !currentlyOpen;
-
-//   setStoreOpen(newState);
-//   recordStoreStateChange(newState, req.user!.userId);
-
-//   console.log(`[store] Store toggled to ${newState ? "OPEN" : "CLOSED"} by admin (${req.user!.userId})`);
-
-//   sendSuccess(res, {
-//     isOpen:  newState,
-//     message: newState
-//       ? "Store opened — customers can now shop"
-//       : "Store closed — customers can browse but not purchase",
-//   }, `Store is now ${newState ? "open" : "closed"}`);
-// });
-
 // ─── Dashboard Summary ────────────────────────────────────────────────────────
 // GET /api/v1/admin/dashboard
 export const adminDashboard = asyncHandler(async (_req: AuthRequest, res: Response) => {
@@ -574,7 +511,7 @@ export const adminDashboard = asyncHandler(async (_req: AuthRequest, res: Respon
     Order.find()
       .sort({ createdAt: -1 })
       .limit(5)
-      .populate("userId", "name email"),
+      .populate("userId", "name phoneNumber"),
   ]);
 
   sendSuccess(res, {
@@ -587,28 +524,4 @@ export const adminDashboard = asyncHandler(async (_req: AuthRequest, res: Respon
     },
     recentOrders,
   }, "Dashboard data fetched");
-});
-
-// Add this to admin.controller.ts
-// Add route: router.post("/push/test", authenticate, adminOnly, adminTestPush);
-
-import { notifyAdminPush, getSubscriptionCount } from "../../utils/webPush";
-
-export const adminTestPush = asyncHandler(async (_req: AuthRequest, res: Response) => {
-  const count = getSubscriptionCount();
-
-  if (count === 0) {
-    throw ApiError.notFound(
-      "No push subscriptions stored. Open the admin dashboard and click 'Enable Notifications' first."
-    );
-  }
-
-  await notifyAdminPush({
-    title: "🧪 Test Notification",
-    body:  "Web Push is working! You'll receive order alerts even with the browser closed.",
-    url:   "/admin/orders",
-    tag:   "test-push",
-  });
-
-  sendSuccess(res, { sent: true, subscriptions: count }, `Test push sent to ${count} device(s)`);
 });

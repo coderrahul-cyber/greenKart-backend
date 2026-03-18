@@ -84,6 +84,8 @@ export const env = {
     apiSecret: str("CLOUDINARY_API_SECRET", ""),
   },
 
+
+
   // Web Push (VAPID) — for background push notifications to admin browser
   // Generate keys once: npx web-push generate-vapid-keys
   vapid: {
@@ -92,18 +94,5 @@ export const env = {
     subject:    str("VAPID_SUBJECT", "mailto:admin@greenkart.in"),
   },
 
-  // Redis — used by otp-service; also available here if main backend needs it later
-  // Cloud Redis example: rediss://:password@host:port  (note: rediss:// for TLS)
-  redis: {
-    host:     str("REDIS_HOST",     "127.0.0.1"),
-    port:     num("REDIS_PORT",     6379),
-    password: str("REDIS_PASSWORD", ""),
-    // Full URL takes priority if set — use this for cloud Redis (Upstash, Redis Cloud)
-    // Format: redis://:password@host:port  or  rediss://:password@host:port (TLS)
-    url:      str("REDIS_URL", ""),
-  },
 
-  // OTP Service — internal microservice for phone verification + SMS queue
-  otpServiceUrl:    str("OTP_SERVICE_URL",    "http://localhost:4001"),
-  otpServiceSecret: str("OTP_SERVICE_SECRET", ""),
 } as const;
