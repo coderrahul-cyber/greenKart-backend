@@ -7,6 +7,8 @@ import { publicApiLimiter } from "./middleware/rateLimiter";
 import { env, connectDB } from "./config";
 import { initWebPush }   from "./utils/webPush";
 import { notFound, errorHandler } from "./middleware/errorHandler";
+import cookieParser from "cookie-parser";
+
 
 // ── Module routers ────────────────────────────────────────────────────────────
 import { userRouter }    from "./modules/user/user.routes";
@@ -19,22 +21,36 @@ import { adminRouter }   from "./modules/admin/admin.routes";
 async function bootstrap() {
   await connectDB();
   initWebPush();
-
+  
   const app = express();
-
+  
   // ── CORS ─────────────────────────────────────────────────────────────────────
   // Allow requests from your frontend origin.
   // In dev: http://localhost:5173 (Vite) or http://localhost:3000 (CRA)
   // In prod: set FRONTEND_URL in .env to your deployed frontend URL
+const frontend_url = process.env.FRONTEND_URL;
+
+const allowedOrigins = [
+  "http://localhost:3000",
+  ...(frontend_url ? [frontend_url] : [])
+];
   
- app.use(
-  cors({
-    origin: "*",
-    credentials: false,
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-  })
-);
+  app.use(cors({
+    origin: (origin, callback) => {
+      // allow server-to-server or tools like Postman
+      if (!origin) return callback(null, true);
+      
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, origin); // return exact origin
+      }
+      
+      return callback(new Error(`CORS not allowed: ${origin}`));
+    },
+    credentials: true,
+  }));
+  
+  
+  app.use(cookieParser());
 
   // ── Security headers (Helmet) ────────────────────────────────────────────────
   // Sets 11 HTTP headers in one line:

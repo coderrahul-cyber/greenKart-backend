@@ -4,7 +4,7 @@ import { env } from "../../config/env";
 import { User } from "../user/user.model";
 import { Product } from "../product/product.model";
 import { Order, OrderStatus } from "../order/order.model";
-import { Payment } from "../payment/payment.model";
+import { Payment, PaymentStatus } from "../payment/payment.model";
 import { ApiError } from "../../utils/apiError";
 import { asyncHandler } from "../../utils/asynchandler";
 import { sendSuccess, sendCreated } from "../../utils/response";
@@ -525,3 +525,71 @@ export const adminDashboard = asyncHandler(async (_req: AuthRequest, res: Respon
     recentOrders,
   }, "Dashboard data fetched");
 });
+
+
+
+const ALLOWED_STATUSES = Object.values(PaymentStatus); // ["pending","paid","failed","refunded"]
+ 
+// Map payment status → order status when admin manually overrides
+const ORDER_STATUS_MAP: Partial<Record<PaymentStatus, OrderStatus>> = {
+  [PaymentStatus.PAID]:     OrderStatus.CONFIRMED,
+  [PaymentStatus.FAILED]:   OrderStatus.CANCELLED,
+  [PaymentStatus.REFUNDED]: OrderStatus.REFUNDED,
+};
+ 
+export const adminUpdatePaymentStatus = asyncHandler(
+  async (req: AuthRequest, res: Response) => {
+    const { id }     = req.params;
+    const { status } = req.body as { status: PaymentStatus };
+ 
+    // ── Validate incoming status ──────────────────────────────────────────
+    if (!status || !ALLOWED_STATUSES.includes(status)) {
+      throw ApiError.badRequest(
+        `status is required and must be one of: ${ALLOWED_STATUSES.join(", ")}`
+      );
+    }
+ 
+    const payment = await Payment.findById(id);
+    if (!payment) throw ApiError.notFound("Payment not found");
+ 
+    // ── Guard: no-op if already in that status ────────────────────────────
+    if (payment.status === status) {
+      return sendSuccess(res, { payment }, `Payment is already ${status}`);
+    }
+ 
+    const previousStatus = payment.status;
+ 
+    // ── Apply status-specific side effects ────────────────────────────────
+    if (status === PaymentStatus.PAID && !payment.paidAt) {
+      payment.paidAt = new Date();
+      // Generate a manual transaction ID if none exists
+      if (!payment.transactionId) {
+        payment.transactionId = `MANUAL-${payment._id}`;
+      }
+    }
+ 
+    if (status === PaymentStatus.REFUNDED && !payment.refundedAt) {
+      payment.refundedAt   = new Date();
+      payment.refundAmount = payment.amount;
+      payment.refundReason = `Manual refund by admin (was: ${previousStatus})`;
+    }
+ 
+    payment.status = status;
+    await payment.save();
+ 
+    // ── Sync order status if a mapping exists ─────────────────────────────
+    const newOrderStatus = ORDER_STATUS_MAP[status];
+    if (newOrderStatus && payment.orderId) {
+      await Order.findByIdAndUpdate(
+        payment.orderId,
+        { $set: { status: newOrderStatus } },
+      );
+    }
+ 
+    sendSuccess(
+      res,
+      { payment },
+      `Payment status updated from ${previousStatus} to ${status}`,
+    );
+  }
+);

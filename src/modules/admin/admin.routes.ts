@@ -36,6 +36,9 @@ import {
   adminGetAllPayments,
   adminGetPaymentById,
   adminPaymentStats,
+  adminUpdatePaymentStatus,
+  adminVerifyUser,
+  adminDeleteUser,
 } from "./admin.controller";
 import { authenticate, adminOnly } from "../../middleware/auth";
 import { adminLoginLimiter }       from "../../middleware/rateLimiter";
@@ -48,7 +51,9 @@ router.post("/refresh-token",  adminLoginLimiter, adminRefreshToken);
 router.get ("/push/vapid-key", adminGetVapidKey);  // ← public: browser fetches before subscribing
 
 // ── All routes below require a valid admin token ─────────────────────────────
-router.use(authenticate, adminOnly);
+// Notifications — SSE stream
+router.get("/notifications/stream", adminOnly ,  adminNotificationStream);
+router.use( adminOnly);
 
 // Web push (subscribe needs auth — token identifies the admin device)
 router.post("/push/subscribe", adminSavePushSubscription);
@@ -59,8 +64,6 @@ router.post("/push/subscribe", adminSavePushSubscription);
 // router.patch("/store/close",  closeStore);
 // router.patch("/store/toggle", toggleStore);
 
-// Notifications — SSE stream
-router.get("/notifications/stream", adminNotificationStream);
 
 // Dashboard
 router.get("/dashboard", adminDashboard);
@@ -82,10 +85,13 @@ router.patch ("/orders/:id/status",   adminUpdateOrderStatus);
 router.get   ("/users/stats",         adminUserStats);       // must be BEFORE /:id
 router.get   ("/users",               adminGetAllUsers);
 router.get   ("/users/:id",           adminGetUserById);
+router.delete("/users/:id",           adminDeleteUser);
+router.patch   ("/users/:id/verify",adminVerifyUser);
 
 // Payments
 router.get   ("/payments/stats",      adminPaymentStats);    // must be BEFORE /:id
 router.get   ("/payments",            adminGetAllPayments);
 router.get   ("/payments/:id",        adminGetPaymentById);
+router.patch ("/payments/:id/status",    adminUpdatePaymentStatus);   // ← 
 
 export { router as adminRouter };
