@@ -15,17 +15,13 @@ import { env } from "../../config/env";
    Cookie Config (centralized)
 ───────────────────────────────────────── */
 const isProd = process.env.NODE_ENV === "production";
-const cookieOptions = isProd ? {
+const cookieOptions = {
   httpOnly: true,
-  secure: true,      // localhost only
-  sameSite: "none" as const,
+  secure: isProd,
+  sameSite: isProd ? "lax" as const: "lax",   // 🔥 CHANGE HERE
   path: "/",
-} : {
-  httpOnly: true,
-  secure: false,      
-  sameSite: "lax" as const,
-  path: "/",
-} ;
+  domain: isProd ? ".greenkartt.shop" : undefined, // 🔥 IMPORTANT
+};
 
 /* ─────────────────────────────────────────
    Register
