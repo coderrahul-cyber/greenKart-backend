@@ -32,23 +32,25 @@ const frontend_url = process.env.FRONTEND_URL;
 
 const allowedOrigins = [
   "http://localhost:3000",
+  "https://www.greenkartt.shop",
+  "https://greenkartt.shop",
   ...(frontend_url ? [frontend_url] : [])
 ];
   
-  app.use(cors({
-    origin: (origin, callback) => {
-      // allow server-to-server or tools like Postman
-      if (!origin) return callback(null, true);
-      
-      if (allowedOrigins.includes(origin)) {
-        return callback(null, origin); // return exact origin
-      }
-      
-      return callback(new Error(`CORS not allowed: ${origin}`));
-    },
-    credentials: true,
-  }));
-  
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+
+    const isAllowed = allowedOrigins.some(o =>
+      origin.includes(o)
+    );
+
+    if (isAllowed) return callback(null, true);
+
+    return callback(new Error(`CORS not allowed: ${origin}`));
+  },
+  credentials: true,
+}));
   
   app.use(cookieParser());
 
