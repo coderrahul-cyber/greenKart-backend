@@ -23,27 +23,29 @@ async function bootstrap() {
   initWebPush();
   
   const app = express();
+  app.set('trust proxy' , 1);
   
   // ── CORS ─────────────────────────────────────────────────────────────────────
   // Allow requests from your frontend origin.
   // In dev: http://localhost:5173 (Vite) or http://localhost:3000 (CRA)
   // In prod: set FRONTEND_URL in .env to your deployed frontend URL
 const frontend_url = process.env.FRONTEND_URL;
-
 const allowedOrigins = [
   "http://localhost:3000",
   "https://www.greenkartt.shop",
   "https://greenkartt.shop",
-  ...(frontend_url ? [frontend_url] : [])
 ];
-  
+
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin) return callback(null, true); // allow server-to-server / curl
+    if (!origin) return callback(null, true);
 
-    if (allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    }
+    // ✅ Allow your production domains + any Vercel preview deployments
+    const isAllowed =
+      allowedOrigins.includes(origin) ||
+      origin.endsWith('.vercel.app');   // covers all preview URLs
+
+    if (isAllowed) return callback(null, true);
     return callback(new Error(`CORS not allowed: ${origin}`));
   },
   credentials:    true,
