@@ -39,17 +39,16 @@ const allowedOrigins = [
   
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin) return callback(null, true);
+    if (!origin) return callback(null, true); // allow server-to-server / curl
 
-    const isAllowed = allowedOrigins.some(o =>
-      origin.includes(o)
-    );
-
-    if (isAllowed) return callback(null, true);
-
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
     return callback(new Error(`CORS not allowed: ${origin}`));
   },
-  credentials: true,
+  credentials:    true,
+  methods:        ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
 }));
   
   app.use(cookieParser());

@@ -15,13 +15,17 @@ import { env } from "../../config/env";
    Cookie Config (centralized)
 ───────────────────────────────────────── */
 const isProd = process.env.NODE_ENV === "production";
+
 const cookieOptions = {
   httpOnly: true,
-  secure: isProd,
-  sameSite: isProd ? "lax" as const: "lax",   // 🔥 CHANGE HERE
-  path: "/",
-  domain: isProd ? ".greenkartt.shop" : undefined, // 🔥 IMPORTANT
+  secure:   isProd,
+  sameSite: isProd ? 'none' as const : 'lax' as const,  // ✅ 'none' in prod
+  path:     '/',
+  // domain:   isProd ? '.greenkartt.shop' : undefined,
 };
+
+const accessCookieOptions  = { ...cookieOptions, maxAge: 15 * 60 * 1000 };           // 15 min
+const refreshCookieOptions = { ...cookieOptions, maxAge: 30 * 24 * 60 * 60 * 1000 };
 
 /* ─────────────────────────────────────────
    Register
@@ -176,24 +180,28 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
 ───────────────────────────────────────── */
 export const refreshToken = asyncHandler(async (req: Request, res: Response) => {
   const token = req.cookies?.refreshToken;
+
   if (!token) throw ApiError.unauthorized("No refresh token");
 
   const decoded = verifyRefreshToken(token);
-  const user = await User.findById(decoded.userId).select("+refreshToken");
+  const user    = await User.findById(decoded.userId).select("+refreshToken");
 
   if (!user || user.refreshToken !== token) {
+    // ✅ Clear stale cookies so the browser doesn't keep retrying with them
+    res.clearCookie("accessToken",  { path: '/' });
+    res.clearCookie("refreshToken", { path: '/' });
     throw ApiError.unauthorized("Invalid refresh token");
   }
 
-  const payload = { userId: user._id.toString(), role: "customer" };
-  const newAccessToken = signAccessToken(payload);
+  const payload         = { userId: user._id.toString(), role: "customer" };
+  const newAccessToken  = signAccessToken(payload);
   const newRefreshToken = signRefreshToken(payload);
 
   user.refreshToken = newRefreshToken;
   await user.save({ validateBeforeSave: false });
 
-  res.cookie("accessToken", newAccessToken, cookieOptions);
-  res.cookie("refreshToken", newRefreshToken, cookieOptions);
+  res.cookie("accessToken",  newAccessToken,  accessCookieOptions);
+  res.cookie("refreshToken", newRefreshToken, refreshCookieOptions);
 
   sendSuccess(res, null, "Token refreshed");
 });
@@ -202,10 +210,13 @@ export const refreshToken = asyncHandler(async (req: Request, res: Response) => 
    Logout
 ───────────────────────────────────────── */
 export const logout = asyncHandler(async (req: AuthRequest, res: Response) => {
-  await User.findByIdAndUpdate(req.user!.userId, { refreshToken: null });
+  // Clear refresh token from DB so it can't be reused
+  await User.findByIdAndUpdate(req.user?.userId, {
+    $unset: { refreshToken: 1 },
+  });
 
-  res.clearCookie("accessToken");
-  res.clearCookie("refreshToken");
+  res.clearCookie("accessToken",  { path: '/', ...(isProd && { secure: true, sameSite: 'none' }) });
+  res.clearCookie("refreshToken", { path: '/', ...(isProd && { secure: true, sameSite: 'none' }) });
 
   sendSuccess(res, null, "Logged out");
 });
